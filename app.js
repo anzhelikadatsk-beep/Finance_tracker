@@ -435,6 +435,63 @@ function renderAnalytics(data) {
   } else {
     $('#weeks-bar-wrap').classList.add('hidden');
   }
+
+  renderDaysList(personal.byDay || {});
+}
+
+function renderDaysList(byDay) {
+  const wrap = $('#days-list');
+  wrap.innerHTML = '';
+  const dates = Object.keys(byDay).sort((a, b) => b.localeCompare(a)); // нові згори
+  if (!dates.length) {
+    wrap.innerHTML = '<p class="hint" style="margin:0;">Даних немає</p>';
+    return;
+  }
+  const max = Math.max(1, ...dates.map(d => byDay[d].total));
+  const dayNames = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const months = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
+
+  dates.forEach(d => {
+    const slot = byDay[d];
+    const date = new Date(d + 'T00:00:00');
+    const label = `${date.getDate()} ${months[date.getMonth()]} (${dayNames[date.getDay()]})`;
+    const pct = Math.round((slot.total / max) * 100);
+
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    row.innerHTML = `
+      <span class="day-label">${label}</span>
+      <span class="day-bar"><span class="day-bar-fill" style="width:${pct}%"></span></span>
+      <span class="day-amt">${fmtUAH(slot.total)}</span>
+    `;
+    const items = document.createElement('div');
+    items.className = 'day-items hidden';
+    items.innerHTML = renderDayItems(slot.items);
+
+    row.addEventListener('click', () => {
+      items.classList.toggle('hidden');
+    });
+    wrap.appendChild(row);
+    wrap.appendChild(items);
+  });
+}
+
+function renderDayItems(items) {
+  if (!items || !items.length) return '<p class="hint" style="margin:6px 0;">Немає покупок</p>';
+  return items.slice().sort((a, b) => (a.time || '').localeCompare(b.time || '')).map(it => {
+    const c = CATEGORY_BY_NAME[it.category];
+    const cm = it.comment ? `<span class="tx-comment">${escapeHtml(it.comment)}</span>` : '';
+    return `
+      <div class="tx-item">
+        <span class="tx-time">${escapeHtml(it.time || '—')}</span>
+        <span class="tx-main">
+          <span class="tx-cat">${c ? c.emoji : '•'} ${escapeHtml(it.category)}</span>
+          ${cm}
+        </span>
+        <span class="tx-amt">${fmtUAH(it.amount)}</span>
+        <span></span>
+      </div>`;
+  }).join('');
 }
 
 function renderPie(byCat, total) {

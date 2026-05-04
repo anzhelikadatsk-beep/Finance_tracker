@@ -269,3 +269,35 @@ input { font: inherit; }
 
 .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-top: 14px; }
 .report-section h3 { margin: 0 0 10px; font-size: 1.05rem; }
+
+/* === По днях === */
+.days-list { display: flex; flex-direction: column; gap: 4px; }
+.day-row {
+  display: grid; grid-template-columns: 1fr auto auto;
+  align-items: center; gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.day-row:last-child { border-bottom: none; }
+.day-row:hover { background: var(--surface-2); }
+.day-row .day-label { font-weight: 500; }
+.day-row .day-bar {
+  height: 6px; background: var(--surface-2); border-radius: 3px;
+  width: 100px; position: relative; overflow: hidden;
+}
+.day-row .day-bar-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: var(--primary); border-radius: 3px;
+}
+.day-row .day-amt { font-weight: 600; min-width: 80px; text-align: right; }
+.day-row .day-toggle { color: var(--text-muted); width: 16px; text-align: center; }
+.day-items {
+  background: var(--surface-2);
+  margin: 0 -4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+}
+.day-items .tx-item { padding: 6px 0; font-size: 0.88rem; }
+.day-items .tx-item:last-child { border-bottom: none; }
