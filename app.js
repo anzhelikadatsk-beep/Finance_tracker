@@ -23,6 +23,7 @@ const CATEGORIES = [
   { id: 'rent',          name: 'Оплата оренди',           emoji: '🔑' },
   { id: 'sport',         name: 'Спорт',                   emoji: '🏋️' },
   { id: 'charity',       name: 'Благодійність',           emoji: '❤️' },
+  { id: 'gifts',         name: 'Подарунки',               emoji: '🎁' },
   { id: 'other',         name: 'Інше',                    emoji: '✏️' }
 ];
 
