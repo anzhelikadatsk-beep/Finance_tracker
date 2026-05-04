@@ -200,6 +200,7 @@ function openAddSheet(categoryName) {
   $('#add-title').textContent = 'Нова покупка: ' + categoryName;
   $('#add-amount').value = '';
   $('#add-comment').value = '';
+  $('#add-date').value = todayStr();
   $('#add-sheet').classList.remove('hidden');
   setTimeout(() => $('#add-amount').focus(), 60);
 }
@@ -214,14 +215,15 @@ async function saveAddSheet() {
   if (!cat) return;
   const amount = Number($('#add-amount').value);
   const comment = $('#add-comment').value.trim();
+  const date = $('#add-date').value || todayStr();
   if (!(amount > 0)) { showToast('Сума має бути > 0'); return; }
   const btn = $('#add-save');
   btn.disabled = true;
   try {
-    await api('add_expense', { user_id: State.auth.user_id, category: cat, amount, comment });
+    await api('add_expense', { user_id: State.auth.user_id, category: cat, amount, comment, date });
     closeAddSheet();
     await refreshToday();
-    showToast('Додано');
+    showToast(date === todayStr() ? 'Додано' : `Збережено за ${date}`);
   } catch (e) {
     showToast('Помилка: ' + e.message);
   } finally {
