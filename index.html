@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#d97757">
+  <title>Сімейний трекер</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <!-- ЕКРАН: PIN -->
+    <section class="screen" data-screen="pin">
+      <div class="container narrow">
+        <h1 class="title">Сімейний трекер</h1>
+        <p class="subtitle">Введи 4-значний PIN</p>
+        <input id="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input">
+        <button id="pin-submit" class="btn btn-primary">Увійти</button>
+        <p id="pin-error" class="error hidden"></p>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Головне меню -->
+    <section class="screen" data-screen="menu">
+      <div class="container">
+        <header class="topbar">
+          <h2 id="hello" class="hello">Привіт! 👋</h2>
+          <button id="settings-btn" class="icon-btn" title="Налаштування">⚙️</button>
+        </header>
+        <div class="tile-grid">
+          <button class="tile" data-go="expenses">
+            <span class="tile-emoji">💸</span>
+            <span class="tile-label">Внести витрати</span>
+          </button>
+          <button class="tile" data-go="income">
+            <span class="tile-emoji">💰</span>
+            <span class="tile-label">Внести дохід</span>
+          </button>
+          <button class="tile" data-go="analytics">
+            <span class="tile-emoji">📊</span>
+            <span class="tile-label">Аналітика</span>
+          </button>
+          <button class="tile" data-go="report">
+            <span class="tile-emoji">📋</span>
+            <span class="tile-label">Проміжний звіт</span>
+          </button>
+          <button id="no-expenses-tile" class="tile tile-wide">
+            <span class="tile-emoji">✅</span>
+            <span class="tile-label">Витрат сьогодні не було</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Витрати -->
+    <section class="screen" data-screen="expenses">
+      <div class="container">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Витрати за день</h2>
+        </header>
+        <p id="exp-hint" class="hint">Тапни категорію, щоб додати покупку. Заповнену тапни знову — щоб переглянути або додати ще.</p>
+        <div id="cat-grid" class="cat-grid"></div>
+        <div class="actions">
+          <button id="finish-day" class="btn btn-primary">✅ Завершити звіт дня</button>
+          <button id="no-expenses-bottom" class="btn btn-ghost">Витрат сьогодні не було</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Дохід -->
+    <section class="screen" data-screen="income">
+      <div class="container narrow">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Внести дохід</h2>
+        </header>
+        <label class="field">
+          <span>Сума, грн</span>
+          <input id="income-amount" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Коментар (необов'язково)</span>
+          <input id="income-comment" type="text" maxlength="200" placeholder="Напр.: ФОП, аванс KEVIN">
+        </label>
+        <label class="field">
+          <span>Дата</span>
+          <input id="income-date" type="date">
+        </label>
+        <button id="income-save" class="btn btn-primary">Зберегти</button>
+        <button id="no-income-btn" class="btn btn-ghost">Надходжень сьогодні не було</button>
+        <div id="income-today" class="today-list"></div>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Аналітика -->
+    <section class="screen" data-screen="analytics">
+      <div class="container">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Аналітика</h2>
+        </header>
+        <div class="seg">
+          <button class="seg-btn active" data-period="week">Тиждень</button>
+          <button class="seg-btn" data-period="month">Місяць</button>
+        </div>
+
+        <div id="week-controls" class="period-controls">
+          <button class="icon-btn" id="week-prev">←</button>
+          <span id="week-label">—</span>
+          <button class="icon-btn" id="week-next">→</button>
+        </div>
+
+        <div id="month-controls" class="period-controls hidden">
+          <select id="month-select"></select>
+        </div>
+
+        <div class="totals">
+          <div class="total-card"><div class="total-label">Витрати</div><div id="t-expenses" class="total-value">0 грн</div></div>
+          <div class="total-card"><div class="total-label">Дохід</div><div id="t-income" class="total-value">0 грн</div></div>
+          <div class="total-card"><div class="total-label">Залишок</div><div id="t-balance" class="total-value">0 грн</div></div>
+        </div>
+
+        <div id="pie-wrap" class="chart-wrap"></div>
+        <div id="cat-list" class="cat-summary"></div>
+        <div id="weeks-bar-wrap" class="chart-wrap hidden">
+          <h3>По тижнях місяця</h3>
+          <div id="weeks-bar"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Проміжний звіт -->
+    <section class="screen" data-screen="report">
+      <div class="container">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Проміжний звіт</h2>
+        </header>
+        <p id="report-date" class="subtitle"></p>
+
+        <div class="report-section">
+          <h3>👤 Твоє</h3>
+          <div class="totals">
+            <div class="total-card"><div class="total-label">Витрати</div><div id="rp-exp" class="total-value">0 грн</div></div>
+            <div class="total-card"><div class="total-label">Дохід</div><div id="rp-inc" class="total-value">0 грн</div></div>
+            <div class="total-card"><div class="total-label">Покупок</div><div id="rp-cnt" class="total-value">0</div></div>
+          </div>
+          <div id="rp-tx-list" class="tx-list"></div>
+        </div>
+
+        <div class="report-section">
+          <h3>👨‍👩 Сімейне</h3>
+          <div class="totals">
+            <div class="total-card"><div class="total-label">Витрати</div><div id="rf-exp" class="total-value">0 грн</div></div>
+            <div class="total-card"><div class="total-label">Дохід</div><div id="rf-inc" class="total-value">0 грн</div></div>
+            <div class="total-card"><div class="total-label">Залишок</div><div id="rf-bal" class="total-value">0 грн</div></div>
+          </div>
+        </div>
+
+        <button id="report-tg" class="btn btn-ghost">📨 Надіслати в Telegram</button>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Налаштування -->
+    <section class="screen" data-screen="settings">
+      <div class="container narrow">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Налаштування</h2>
+        </header>
+        <p>Користувач: <b id="set-user">—</b></p>
+        <button id="logout-btn" class="btn btn-danger">Вийти (очистити PIN)</button>
+      </div>
+    </section>
+
+    <!-- ===== Bottom sheets ===== -->
+
+    <!-- Sheet: додати нову транзакцію -->
+    <div id="add-sheet" class="sheet hidden">
+      <div class="sheet-bg" data-sheet-close></div>
+      <div class="sheet-card">
+        <h3 id="add-title">Категорія</h3>
+        <label class="field">
+          <span>Сума, грн</span>
+          <input id="add-amount" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Коментар (необов'язково)</span>
+          <input id="add-comment" type="text" maxlength="200" placeholder="Напр.: АТБ, обід з друзями">
+        </label>
+        <div class="sheet-actions">
+          <button data-sheet-close class="btn btn-ghost">Скасувати</button>
+          <button id="add-save" class="btn btn-primary">Додати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sheet: список покупок у категорії за сьогодні -->
+    <div id="list-sheet" class="sheet hidden">
+      <div class="sheet-bg" data-sheet-close></div>
+      <div class="sheet-card">
+        <h3 id="list-title">Категорія</h3>
+        <p id="list-summary" class="hint"></p>
+        <div id="list-items" class="tx-list"></div>
+        <div class="sheet-actions">
+          <button data-sheet-close class="btn btn-ghost">Закрити</button>
+          <button id="list-add-more" class="btn btn-primary">+ Додати ще</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
