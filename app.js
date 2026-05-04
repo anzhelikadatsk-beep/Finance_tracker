@@ -200,7 +200,8 @@ function openAddSheet(categoryName) {
   $('#add-title').textContent = 'Нова покупка: ' + categoryName;
   $('#add-amount').value = '';
   $('#add-comment').value = '';
-  $('#add-date').value = todayStr();
+  const dateEl = $('#add-date');
+  if (dateEl) dateEl.value = todayStr();
   $('#add-sheet').classList.remove('hidden');
   setTimeout(() => $('#add-amount').focus(), 60);
 }
@@ -215,7 +216,7 @@ async function saveAddSheet() {
   if (!cat) return;
   const amount = Number($('#add-amount').value);
   const comment = $('#add-comment').value.trim();
-  const date = $('#add-date').value || todayStr();
+  const date = ($('#add-date') && $('#add-date').value) || todayStr();
   if (!(amount > 0)) { showToast('Сума має бути > 0'); return; }
   const btn = $('#add-save');
   btn.disabled = true;
