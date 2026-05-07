@@ -27,6 +27,10 @@
           <h2 id="hello" class="hello">Привіт! 👋</h2>
           <button id="settings-btn" class="icon-btn" title="Налаштування">⚙️</button>
         </header>
+        <div id="balance-card" class="balance-card hidden">
+          <div class="balance-title">💼 Поточний баланс</div>
+          <div id="balance-rows"></div>
+        </div>
         <div class="tile-grid">
           <button class="tile" data-go="expenses">
             <span class="tile-emoji">💸</span>
@@ -103,6 +107,11 @@
         <div class="seg">
           <button class="seg-btn active" data-period="week">Тиждень</button>
           <button class="seg-btn" data-period="month">Місяць</button>
+        </div>
+        <div class="seg" id="view-seg">
+          <button class="seg-btn active" data-view="me">Я</button>
+          <button class="seg-btn" data-view="other">—</button>
+          <button class="seg-btn" data-view="family">Сімейне</button>
         </div>
 
         <div id="week-controls" class="period-controls">

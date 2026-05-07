@@ -10,6 +10,7 @@ const CATEGORIES = [
   { id: 'clothes',       name: 'Одяг та взуття',          emoji: '👗' },
   { id: 'education',     name: 'Освіта',                  emoji: '📚' },
   { id: 'entertainment', name: 'Розваги',                 emoji: '🎭' },
+  { id: 'leisure',       name: 'Відпочинок',              emoji: '🏖️' },
   { id: 'pets',          name: 'Тварини',                 emoji: '🐾' },
   { id: 'services',      name: 'Послуги',                 emoji: '📦' },
   { id: 'beauty',        name: 'Краса',                   emoji: '💄' },
@@ -46,7 +47,7 @@ const LS = { AUTH: 'fft_auth' };
 const State = {
   auth: null,
   today: null,    // get_today_summary response
-  analytics: { mode: 'week', weekOffset: 0, monthStr: null },
+  analytics: { mode: 'week', current: null, monthStr: null, view: 'me' },
   addSheet: { categoryName: null },
   listSheet: { categoryName: null }
 };
@@ -169,6 +170,25 @@ function renderMenu() {
     tile.querySelector('.tile-emoji').textContent = '✅';
     tile.querySelector('.tile-label').textContent = 'Витрат сьогодні не було';
   }
+  renderBalance();
+}
+
+function renderBalance() {
+  const card = $('#balance-card');
+  const rows = $('#balance-rows');
+  const b = State.today && State.today.balance;
+  if (!b || !b.byUser) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const sign = (n) => (n >= 0 ? 'positive' : 'negative');
+  const fmtSigned = (n) => (n >= 0 ? '+' : '−') + fmtUAH(Math.abs(n));
+  const users = Object.keys(b.byUser);
+  let html = '';
+  users.forEach(name => {
+    const v = b.byUser[name];
+    html += `<div class="balance-row"><span>${escapeHtml(name)}</span><span class="balance-amt ${sign(v.balance)}">${fmtSigned(v.balance)}</span></div>`;
+  });
+  html += `<div class="balance-row total"><span>Сімейне</span><span class="balance-amt ${sign(b.family.balance)}">${fmtSigned(b.family.balance)}</span></div>`;
+  rows.innerHTML = html;
 }
 
 // ==================== ВИТРАТИ ====================
@@ -393,50 +413,110 @@ async function loadAnalytics() {
   else period = 'month:' + (State.analytics.monthStr || monthStr(new Date()));
   try {
     const data = await api('get_analytics', { user_id: State.auth.user_id, period });
+    State.analytics.lastData = data;
+    setupViewSeg(data);
     renderAnalytics(data);
   } catch (e) {
     showToast('Помилка: ' + e.message);
   }
 }
 
+function ensureCurrentWeek() {
+  if (!State.analytics.current) {
+    const t = new Date();
+    State.analytics.current = { monthStr: monthStr(t), week: Math.ceil(t.getDate() / 7) };
+  }
+}
+
+function shiftWeek(delta) {
+  ensureCurrentWeek();
+  const cur = State.analytics.current;
+  let [y, m] = cur.monthStr.split('-').map(Number);
+  m -= 1; // 0-indexed
+  let week = cur.week + delta;
+
+  while (true) {
+    const lastInMonth = new Date(y, m + 1, 0).getDate();
+    const maxWeek = Math.ceil(lastInMonth / 7);
+    if (week > maxWeek) {
+      week -= maxWeek;
+      m += 1;
+      if (m === 12) { y += 1; m = 0; }
+      continue;
+    }
+    if (week < 1) {
+      m -= 1;
+      if (m === -1) { y -= 1; m = 11; }
+      const prevLast = new Date(y, m + 1, 0).getDate();
+      week += Math.ceil(prevLast / 7);
+      continue;
+    }
+    break;
+  }
+  State.analytics.current = { monthStr: `${y}-${pad2(m + 1)}`, week };
+}
+
 function computeWeekPeriod() {
-  const today = new Date();
-  const offset = State.analytics.weekOffset || 0;
-  const baseWeek = Math.ceil(today.getDate() / 7);
-  const refDate = new Date(today.getFullYear(), today.getMonth(), 1 + (baseWeek - 1) * 7 + offset * 7);
-  return `week:${monthStr(refDate)}:${Math.ceil(refDate.getDate() / 7)}`;
+  ensureCurrentWeek();
+  const { monthStr: ms, week } = State.analytics.current;
+  return `week:${ms}:${week}`;
 }
 
 function setWeekLabel() {
-  const today = new Date();
-  const offset = State.analytics.weekOffset || 0;
-  const baseWeek = Math.ceil(today.getDate() / 7);
-  const refDate = new Date(today.getFullYear(), today.getMonth(), 1 + (baseWeek - 1) * 7 + offset * 7);
-  const month = refDate.getMonth();
-  const week = Math.ceil(refDate.getDate() / 7);
+  ensureCurrentWeek();
+  const { monthStr: ms, week } = State.analytics.current;
+  let [y, m] = ms.split('-').map(Number);
+  m -= 1;
+  const lastInMonth = new Date(y, m + 1, 0).getDate();
   const startDay = (week - 1) * 7 + 1;
-  const lastDay = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
-  const endDay = Math.min(week * 7, lastDay);
-  $('#week-label').textContent = `Тиждень ${week}: ${startDay}–${endDay} ${MONTHS_UA[month]}`;
+  const endDay = Math.min(week * 7, lastInMonth);
+  $('#week-label').textContent = `Тиждень ${week}: ${startDay}–${endDay} ${MONTHS_UA[m]}`;
+}
+
+function setupViewSeg(data) {
+  const me = State.auth.user_name;
+  const names = Object.keys(data.byUser || {});
+  const other = names.find(n => n !== me) || '';
+  const meBtn = document.querySelector('#view-seg [data-view="me"]');
+  const otherBtn = document.querySelector('#view-seg [data-view="other"]');
+  const famBtn = document.querySelector('#view-seg [data-view="family"]');
+  if (meBtn) meBtn.textContent = me || 'Я';
+  if (otherBtn) {
+    otherBtn.textContent = other || '—';
+    otherBtn.disabled = !other;
+    otherBtn.style.opacity = other ? '' : '0.4';
+  }
+  // sync active state
+  document.querySelectorAll('#view-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.view === State.analytics.view));
+}
+
+function pickViewBucket(data) {
+  const view = State.analytics.view || 'me';
+  if (view === 'family') return data.family;
+  const me = State.auth.user_name;
+  if (view === 'me') return (data.byUser && data.byUser[me]) || data.personal;
+  // 'other'
+  const otherName = Object.keys(data.byUser || {}).find(n => n !== me);
+  return (data.byUser && otherName && data.byUser[otherName]) || { total: 0, byCategory: {}, byWeek: {}, byDay: {}, income: 0, balance: 0 };
 }
 
 function renderAnalytics(data) {
-  const personal = data.personal || { total: 0, byCategory: {}, byWeek: {}, income: 0, balance: 0 };
-  $('#t-expenses').textContent = fmtUAH(personal.total);
-  $('#t-income').textContent = fmtUAH(personal.income);
-  $('#t-balance').textContent = fmtUAH(personal.balance);
+  const bucket = pickViewBucket(data);
+  $('#t-expenses').textContent = fmtUAH(bucket.total || 0);
+  $('#t-income').textContent = fmtUAH(bucket.income || 0);
+  $('#t-balance').textContent = fmtUAH(bucket.balance || 0);
 
-  renderPie(personal.byCategory, personal.total);
-  renderCatList(personal.byCategory, personal.total);
+  renderPie(bucket.byCategory || {}, bucket.total || 0);
+  renderCatList(bucket.byCategory || {}, bucket.total || 0);
 
   if (State.analytics.mode === 'month') {
     $('#weeks-bar-wrap').classList.remove('hidden');
-    renderWeeksBar(personal.byWeek);
+    renderWeeksBar(bucket.byWeek || {});
   } else {
     $('#weeks-bar-wrap').classList.add('hidden');
   }
 
-  renderDaysList(personal.byDay || {});
+  renderDaysList(bucket.byDay || {});
 }
 
 function renderDaysList(byDay) {
@@ -639,7 +719,8 @@ function navigate(to) {
     renderIncomeToday();
   } else if (to === 'analytics') {
     fillMonthSelect();
-    State.analytics.weekOffset = 0;
+    State.analytics.current = null;
+    ensureCurrentWeek();
     setScreen('analytics');
     setWeekLabel();
     loadAnalytics();
@@ -706,8 +787,15 @@ function bindEvents() {
     if (State.analytics.mode === 'week') setWeekLabel();
     loadAnalytics();
   }));
-  $('#week-prev').addEventListener('click', () => { State.analytics.weekOffset--; setWeekLabel(); loadAnalytics(); });
-  $('#week-next').addEventListener('click', () => { State.analytics.weekOffset++; setWeekLabel(); loadAnalytics(); });
+  $('#week-prev').addEventListener('click', () => { shiftWeek(-1); setWeekLabel(); loadAnalytics(); });
+  $('#week-next').addEventListener('click', () => { shiftWeek(+1); setWeekLabel(); loadAnalytics(); });
+
+  document.querySelectorAll('#view-seg .seg-btn').forEach(b => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    State.analytics.view = b.dataset.view;
+    document.querySelectorAll('#view-seg .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    if (State.analytics.lastData) renderAnalytics(State.analytics.lastData);
+  }));
   $('#month-select').addEventListener('change', e => { State.analytics.monthStr = e.target.value; loadAnalytics(); });
 
   // Проміжний звіт
