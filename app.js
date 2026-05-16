@@ -22,6 +22,7 @@ const CATEGORIES = [
   { id: 'mobile',        name: 'Поповнення мобільного',   emoji: '📱' },
   { id: 'utilities',     name: 'Комуналка та інтернет',   emoji: '💡' },
   { id: 'rent',          name: 'Оплата оренди',           emoji: '🔑' },
+  { id: 'debt',          name: 'Заборгованість/кредити',  emoji: '💳' },
   { id: 'sport',         name: 'Спорт',                   emoji: '🏋️' },
   { id: 'charity',       name: 'Благодійність',           emoji: '❤️' },
   { id: 'gifts',         name: 'Подарунки',               emoji: '🎁' },
@@ -61,11 +62,17 @@ function todayStr() { return dateStr(new Date()); }
 function fmtUAH(n) { return Math.round(Number(n) || 0).toLocaleString('uk-UA').replace(/,/g, ' ') + ' грн'; }
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function showToast(msg, ms = 1800) {
+function showToast(msg, ms = 2000) {
   const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  // Перезапустити анімацію
+  t.style.animation = 'none';
+  void t.offsetHeight; // reflow
+  t.style.animation = '';
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => t.classList.add('hidden'), ms);
 }
+
+function userName() { return State.auth?.user_name || 'друже'; }
 
 function setScreen(name) {
   $$('.screen').forEach(s => s.classList.toggle('active', s.dataset.screen === name));
@@ -245,7 +252,7 @@ async function saveAddSheet() {
     await api('add_expense', { user_id: State.auth.user_id, category: cat, amount, comment, date });
     closeAddSheet();
     await refreshToday();
-    showToast(date === todayStr() ? 'Додано' : `Збережено за ${date}`);
+    showToast(date === todayStr() ? `Готово, ${userName()} 💚` : `Збережено за ${date} ✓`);
   } catch (e) {
     showToast('Помилка: ' + e.message);
   } finally {
@@ -306,7 +313,7 @@ async function deleteExpenseTx(txId) {
     const slot = State.today && State.today.personal.expenses.by_category[cat];
     if (!slot || !slot.items.length) closeListSheet();
     else renderListSheet();
-    showToast('Видалено');
+    showToast('Видалено ✓');
   } catch (e) {
     showToast('Помилка: ' + e.message);
   }
@@ -325,7 +332,7 @@ async function finishDay() {
     await api('mark_expenses_done', { user_id: State.auth.user_id });
     await refreshToday();
     setScreen('report');
-    showToast('Звіт дня закрито');
+    showToast(`Чудово, ${userName()}! День закрито 🎉`);
   } catch (e) {
     showToast('Помилка: ' + e.message);
   } finally {
@@ -338,7 +345,7 @@ async function markNoExpenses() {
     await api('no_expenses', { user_id: State.auth.user_id });
     await refreshToday();
     setScreen('menu');
-    showToast('Записано: витрат не було');
+    showToast('Сьогодні без витрат — добре 💚');
   } catch (e) {
     showToast('Помилка: ' + e.message);
   }
@@ -386,7 +393,7 @@ async function saveIncome() {
     $('#income-amount').value = '';
     $('#income-comment').value = '';
     await refreshToday();
-    showToast('Дохід збережено');
+    showToast(`Прийшло! +${fmtUAH(amount)} 💰`);
   } catch (e) {
     showToast('Помилка: ' + e.message);
   } finally {
@@ -398,7 +405,7 @@ async function markNoIncome() {
   try {
     await api('no_income', { user_id: State.auth.user_id });
     await refreshToday();
-    showToast('Записано: надходжень не було');
+    showToast('Сьогодні без надходжень — ОК');
     setTimeout(() => setScreen('menu'), 600);
   } catch (e) {
     showToast('Помилка: ' + e.message);
@@ -524,7 +531,12 @@ function renderDaysList(byDay) {
   wrap.innerHTML = '';
   const dates = Object.keys(byDay).sort((a, b) => b.localeCompare(a)); // нові згори
   if (!dates.length) {
-    wrap.innerHTML = '<p class="hint" style="margin:0;">Даних немає</p>';
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-emoji">📊</span>
+        <div class="empty-title">Тут поки що порожньо</div>
+        <div class="empty-subtitle">Накопичуємо історію — повернись після кількох транзакцій</div>
+      </div>`;
     return;
   }
   const max = Math.max(1, ...dates.map(d => byDay[d].total));
@@ -578,7 +590,12 @@ function renderPie(byCat, total) {
   const wrap = $('#pie-wrap');
   wrap.innerHTML = '';
   if (!total) {
-    wrap.innerHTML = '<p style="text-align:center; color: var(--text-muted);">Даних немає</p>';
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-emoji">🍃</span>
+        <div class="empty-title">За цей період ще нічого</div>
+        <div class="empty-subtitle">Як з'являться витрати — побудується графік</div>
+      </div>`;
     return;
   }
   const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
@@ -669,7 +686,12 @@ function renderReport() {
 
   const list = $('#rp-tx-list');
   if (!items.length) {
-    list.innerHTML = '<p class="hint" style="margin-top:8px;">Сьогодні ще нічого не вносили.</p>';
+    list.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-emoji">💚</span>
+        <div class="empty-title">Сьогодні поки чисто</div>
+        <div class="empty-subtitle">Додай першу транзакцію — і тут з'явиться твоя історія</div>
+      </div>`;
   } else {
     list.innerHTML = items.map(it => {
       const isIncome = it.type === 'inc';
@@ -697,7 +719,7 @@ async function sendReportToTelegram() {
   btn.disabled = true;
   try {
     await api('send_today_to_telegram', { user_id: State.auth.user_id });
-    showToast('Надіслано в Telegram ✓');
+    showToast('Полетіло в Telegram 📨');
   } catch (e) {
     showToast('Помилка: ' + e.message);
   } finally {
