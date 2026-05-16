@@ -930,12 +930,12 @@ async function saveDebtPayment() {
   const comment = $('#debt-pay-comment').value.trim();
   if (!(amount > 0)) { showToast('Сума має бути > 0'); return; }
 
-  // Якщо платник != залогінений користувач, треба user_id отримувача
-  // Але pay_debt очікує user_id ПЛАТНИКА. У нас є лише імена, треба змапити.
-  // Простий шлях: якщо payer != auth.user_name, то це робить інший користувач — не можна без його user_id.
-  // Пропоную: дозволяти лише поточному користувачу платити. Якщо вибрав іншого — попередимо.
-  if (payer !== State.auth.user_name) {
-    if (!confirm(`Сплатити від імені ${payer}? Це створить переказ ${State.auth.user_name} → ${payer} + витрату ${payer}.`)) return;
+  // Якщо платник ≠ власник боргу — попереджаємо що буде створено переказ
+  const debt = State.debts.list.find(d => d.id === id);
+  if (debt && payer !== debt.owner) {
+    const isCreditCard = debt.type === 'credit_card';
+    const extra = isCreditCard ? '' : ` + витрата ${debt.owner} в "Заборгованість/кредити"`;
+    if (!confirm(`Сплатити від імені ${payer}? Це створить переказ ${payer} → ${debt.owner}${extra}.`)) return;
   }
 
   const btn = $('#debt-pay-save');
