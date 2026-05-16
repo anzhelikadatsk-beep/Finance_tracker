@@ -50,7 +50,8 @@ const State = {
   today: null,    // get_today_summary response
   analytics: { mode: 'week', current: null, monthStr: null, view: 'me' },
   addSheet: { categoryName: null },
-  listSheet: { categoryName: null }
+  listSheet: { categoryName: null },
+  debts: { list: [], editingId: null, payingId: null }
 };
 
 // ==================== УТИЛІТИ ====================
@@ -714,6 +715,244 @@ function renderReport() {
   $('#rf-bal').textContent = fmtUAH(t.family.income.total - t.family.expenses.total);
 }
 
+// ==================== БОРГИ І КРЕДИТИ ====================
+
+const DEBT_TYPES = {
+  credit_card: 'Кредитка',
+  installment: 'Частинами',
+  loan: 'Кредит'
+};
+
+async function loadDebts() {
+  try {
+    const res = await api('get_debts', { user_id: State.auth.user_id });
+    State.debts.list = res.debts || [];
+    renderDebtsScreen();
+  } catch (e) {
+    showToast('Помилка: ' + e.message);
+  }
+}
+
+function getOtherUsers() {
+  const balance = State.today && State.today.balance && State.today.balance.byUser;
+  return balance ? Object.keys(balance) : [];
+}
+
+function renderDebtsScreen() {
+  const list = $('#debts-list');
+  list.innerHTML = '';
+  const active = State.debts.list.filter(d => d.is_active === true || d.is_active === 'TRUE' || d.is_active === 1);
+  const closed = State.debts.list.filter(d => !(d.is_active === true || d.is_active === 'TRUE' || d.is_active === 1));
+
+  if (!active.length && !closed.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-emoji">💚</span>
+        <div class="empty-title">Жодних боргів — чудово!</div>
+        <div class="empty-subtitle">Якщо з'явиться кредит чи покупка частинами — додай через кнопку нижче</div>
+      </div>`;
+  } else {
+    active.forEach(d => list.appendChild(renderDebtCard(d, false)));
+    if (closed.length) {
+      const h = document.createElement('h3');
+      h.style.cssText = 'margin: 22px 0 6px; font-size: 0.92rem; color: var(--text-muted); text-transform: uppercase;';
+      h.textContent = 'Закриті';
+      list.appendChild(h);
+      closed.forEach(d => list.appendChild(renderDebtCard(d, true)));
+    }
+  }
+
+  // Зведення (тоталі залишків по власниках)
+  const totals = {};
+  let famTotal = 0;
+  active.forEach(d => {
+    const remaining = Math.max(0, (Number(d.total_amount) || 0) - (Number(d.paid_amount) || 0));
+    totals[d.owner] = (totals[d.owner] || 0) + remaining;
+    famTotal += remaining;
+  });
+  const totalsCard = $('#debts-totals');
+  const totalsRows = $('#debts-totals-rows');
+  if (Object.keys(totals).length === 0) {
+    totalsCard.classList.add('hidden');
+  } else {
+    totalsCard.classList.remove('hidden');
+    let html = '';
+    Object.keys(totals).forEach(name => {
+      html += `<div class="balance-row"><span>${escapeHtml(name)}</span><span class="balance-amt negative">−${fmtUAH(totals[name])}</span></div>`;
+    });
+    html += `<div class="balance-row total"><span>Загалом сім'я</span><span class="balance-amt negative">−${fmtUAH(famTotal)}</span></div>`;
+    totalsRows.innerHTML = html;
+  }
+}
+
+function renderDebtCard(d, isClosed) {
+  const card = document.createElement('div');
+  card.className = 'debt-card' + (isClosed ? ' inactive' : '');
+  const total = Number(d.total_amount) || 0;
+  const paid = Number(d.paid_amount) || 0;
+  const remaining = Math.max(0, total - paid);
+  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+  const monthly = Number(d.monthly_payment) || 0;
+  const typeLabel = DEBT_TYPES[d.type] || d.type;
+  const dayStr = d.payment_day ? `${d.payment_day} число` : '—';
+
+  card.innerHTML = `
+    <div class="debt-header">
+      <span class="debt-name">${escapeHtml(d.name)} <span class="debt-type-badge">${typeLabel}</span></span>
+      <span class="debt-owner">${escapeHtml(d.owner)}</span>
+    </div>
+    <div class="debt-progress">
+      <div class="debt-bar"><div class="debt-bar-fill" style="width:${pct}%"></div></div>
+      <div class="debt-stat">
+        Сплачено <b>${fmtUAH(paid)}</b> з ${fmtUAH(total)} (${pct}%) ·
+        Залишок: <span class="debt-remaining">${fmtUAH(remaining)}</span>
+      </div>
+    </div>
+    <div class="debt-meta">
+      ${monthly ? `Місячний платіж: ${fmtUAH(monthly)} ·` : ''} День платежу: ${dayStr}
+      ${d.notes ? `<br>📝 ${escapeHtml(d.notes)}` : ''}
+    </div>
+    ${isClosed ? '' : `
+      <div class="debt-actions">
+        <button class="btn btn-primary" data-pay="${escapeHtml(d.id)}">💳 Сплатити</button>
+        <button class="btn btn-ghost" data-edit="${escapeHtml(d.id)}">✏️ Деталі</button>
+      </div>`}
+  `;
+  card.querySelector('[data-pay]')?.addEventListener('click', () => openDebtPaySheet(d));
+  card.querySelector('[data-edit]')?.addEventListener('click', () => openDebtFormSheet(d));
+  return card;
+}
+
+function openDebtFormSheet(debt) {
+  State.debts.editingId = debt ? debt.id : null;
+  $('#debt-form-title').textContent = debt ? 'Редагувати кредит' : 'Новий кредит';
+  $('#debt-form-id').value = debt ? debt.id : '';
+  $('#debt-form-name').value = debt ? debt.name : '';
+  $('#debt-form-type').value = debt ? debt.type : 'credit_card';
+  // Owner dropdown
+  const ownerSel = $('#debt-form-owner');
+  ownerSel.innerHTML = getOtherUsers().concat([State.auth.user_name])
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  ownerSel.value = debt ? debt.owner : State.auth.user_name;
+
+  $('#debt-form-total').value = debt ? debt.total_amount : '';
+  $('#debt-form-paid').value = debt ? debt.paid_amount : 0;
+  $('#debt-form-monthly').value = debt && debt.monthly_payment ? debt.monthly_payment : '';
+  $('#debt-form-payday').value = debt && debt.payment_day ? debt.payment_day : '';
+  $('#debt-form-end').value = debt && debt.end_date ? String(debt.end_date).slice(0, 10) : '';
+  $('#debt-form-notes').value = debt ? debt.notes : '';
+
+  $('#debt-form-close-btn').classList.toggle('hidden', !debt);
+  $('#debt-form-sheet').classList.remove('hidden');
+}
+
+function closeDebtFormSheet() {
+  $('#debt-form-sheet').classList.add('hidden');
+  State.debts.editingId = null;
+}
+
+async function saveDebtForm() {
+  const data = {
+    name: $('#debt-form-name').value.trim(),
+    type: $('#debt-form-type').value,
+    owner: $('#debt-form-owner').value,
+    total_amount: Number($('#debt-form-total').value) || 0,
+    paid_amount: Number($('#debt-form-paid').value) || 0,
+    monthly_payment: Number($('#debt-form-monthly').value) || 0,
+    payment_day: Number($('#debt-form-payday').value) || 0,
+    end_date: $('#debt-form-end').value || '',
+    notes: $('#debt-form-notes').value.trim()
+  };
+  if (!data.name) { showToast('Введи назву'); return; }
+  if (!data.total_amount && data.type === 'installment') { showToast('Вкажи загальну суму'); return; }
+
+  const btn = $('#debt-form-save');
+  btn.disabled = true;
+  try {
+    if (State.debts.editingId) {
+      await api('update_debt', Object.assign({ user_id: State.auth.user_id, debt_id: State.debts.editingId }, data));
+      showToast('Збережено ✓');
+    } else {
+      await api('add_debt', Object.assign({ user_id: State.auth.user_id }, data));
+      showToast('Додано борг 💳');
+    }
+    closeDebtFormSheet();
+    await loadDebts();
+  } catch (e) {
+    showToast('Помилка: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function closeDebt() {
+  const id = State.debts.editingId;
+  if (!id) return;
+  if (!confirm('Закрити цей борг? (помітимо як виплачений)')) return;
+  try {
+    await api('close_debt', { user_id: State.auth.user_id, debt_id: id });
+    closeDebtFormSheet();
+    await loadDebts();
+    showToast('Борг закрито 🎉');
+  } catch (e) {
+    showToast('Помилка: ' + e.message);
+  }
+}
+
+function openDebtPaySheet(debt) {
+  State.debts.payingId = debt.id;
+  $('#debt-pay-title').textContent = `Сплата: ${debt.name}`;
+  const total = Number(debt.total_amount) || 0;
+  const paid = Number(debt.paid_amount) || 0;
+  const remaining = Math.max(0, total - paid);
+  $('#debt-pay-info').textContent = `Власник: ${debt.owner} · Залишок боргу: ${fmtUAH(remaining)}`;
+  $('#debt-pay-amount').value = debt.monthly_payment || remaining || '';
+  $('#debt-pay-comment').value = '';
+  // Payer dropdown
+  const payerSel = $('#debt-pay-payer');
+  const names = Array.from(new Set([State.auth.user_name].concat(getOtherUsers())));
+  payerSel.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  payerSel.value = State.auth.user_name;
+  $('#debt-pay-sheet').classList.remove('hidden');
+}
+
+function closeDebtPaySheet() {
+  $('#debt-pay-sheet').classList.add('hidden');
+  State.debts.payingId = null;
+}
+
+async function saveDebtPayment() {
+  const id = State.debts.payingId;
+  if (!id) return;
+  const amount = Number($('#debt-pay-amount').value);
+  const payer = $('#debt-pay-payer').value;
+  const comment = $('#debt-pay-comment').value.trim();
+  if (!(amount > 0)) { showToast('Сума має бути > 0'); return; }
+
+  // Якщо платник != залогінений користувач, треба user_id отримувача
+  // Але pay_debt очікує user_id ПЛАТНИКА. У нас є лише імена, треба змапити.
+  // Простий шлях: якщо payer != auth.user_name, то це робить інший користувач — не можна без його user_id.
+  // Пропоную: дозволяти лише поточному користувачу платити. Якщо вибрав іншого — попередимо.
+  if (payer !== State.auth.user_name) {
+    if (!confirm(`Сплатити від імені ${payer}? Це створить переказ ${State.auth.user_name} → ${payer} + витрату ${payer}.`)) return;
+  }
+
+  const btn = $('#debt-pay-save');
+  btn.disabled = true;
+  try {
+    await api('pay_debt', { user_id: State.auth.user_id, debt_id: id, amount, comment, payer_name: payer });
+    closeDebtPaySheet();
+    await loadDebts();
+    await refreshToday();
+    showToast(`Сплачено ${fmtUAH(amount)} 💳`);
+  } catch (e) {
+    showToast('Помилка: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ==================== ПЕРЕКАЗ ====================
 
 function fillTransferRecipients() {
@@ -790,6 +1029,9 @@ function navigate(to) {
     $('#transfer-amount').value = '';
     $('#transfer-comment').value = '';
     setScreen('transfer');
+  } else if (to === 'debts') {
+    setScreen('debts');
+    loadDebts();
   } else if (to === 'menu') {
     setScreen('menu');
     refreshToday();
@@ -837,7 +1079,7 @@ function bindEvents() {
 
   // Generic sheet close
   $$('[data-sheet-close]').forEach(el => el.addEventListener('click', () => {
-    closeAddSheet(); closeListSheet();
+    closeAddSheet(); closeListSheet(); closeDebtFormSheet(); closeDebtPaySheet();
   }));
 
   // Аналітика
@@ -865,6 +1107,12 @@ function bindEvents() {
 
   // Переказ
   $('#transfer-save').addEventListener('click', saveTransfer);
+
+  // Борги
+  $('#debts-add-btn').addEventListener('click', () => openDebtFormSheet(null));
+  $('#debt-form-save').addEventListener('click', saveDebtForm);
+  $('#debt-form-close-btn').addEventListener('click', closeDebt);
+  $('#debt-pay-save').addEventListener('click', saveDebtPayment);
 
   // Logout
   $('#logout-btn').addEventListener('click', () => {

@@ -52,6 +52,10 @@
             <span class="tile-emoji">🔄</span>
             <span class="tile-label">Переказ між нами</span>
           </button>
+          <button class="tile tile-wide" data-go="debts">
+            <span class="tile-emoji">💳</span>
+            <span class="tile-label">Борги і кредити</span>
+          </button>
           <button id="no-expenses-tile" class="tile tile-wide">
             <span class="tile-emoji">✅</span>
             <span class="tile-label">Витрат сьогодні не було</span>
@@ -203,6 +207,101 @@
         <button id="transfer-save" class="btn btn-primary">Перекинути</button>
       </div>
     </section>
+
+    <!-- ЕКРАН: Борги і кредити -->
+    <section class="screen" data-screen="debts">
+      <div class="container">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Борги і кредити</h2>
+        </header>
+        <div id="debts-totals" class="balance-card hidden">
+          <div class="balance-title">💳 Зведення</div>
+          <div id="debts-totals-rows"></div>
+        </div>
+        <div id="debts-list"></div>
+        <button id="debts-add-btn" class="btn btn-primary">+ Новий кредит</button>
+      </div>
+    </section>
+
+    <!-- Sheet: додати/редагувати борг -->
+    <div id="debt-form-sheet" class="sheet hidden">
+      <div class="sheet-bg" data-sheet-close></div>
+      <div class="sheet-card">
+        <h3 id="debt-form-title">Новий кредит</h3>
+        <input type="hidden" id="debt-form-id">
+        <label class="field">
+          <span>Назва</span>
+          <input id="debt-form-name" type="text" maxlength="100" placeholder="Напр.: iPhone 14, Кредитка ПриватБанк">
+        </label>
+        <label class="field">
+          <span>Тип</span>
+          <select id="debt-form-type">
+            <option value="credit_card">Кредитка (баланс)</option>
+            <option value="installment">Оплата частинами</option>
+            <option value="loan">Кредит</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Чий борг</span>
+          <select id="debt-form-owner"></select>
+        </label>
+        <label class="field">
+          <span>Загальна сума</span>
+          <input id="debt-form-total" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Вже сплачено (опціонально)</span>
+          <input id="debt-form-paid" type="number" inputmode="decimal" min="0" step="0.01" value="0">
+        </label>
+        <label class="field">
+          <span>Місячний платіж (опціонально)</span>
+          <input id="debt-form-monthly" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>День платежу (1-31)</span>
+          <input id="debt-form-payday" type="number" inputmode="numeric" min="1" max="31">
+        </label>
+        <label class="field">
+          <span>Кінцева дата (опціонально)</span>
+          <input id="debt-form-end" type="date">
+        </label>
+        <label class="field">
+          <span>Нотатки</span>
+          <input id="debt-form-notes" type="text" maxlength="300">
+        </label>
+        <div class="sheet-actions">
+          <button data-sheet-close class="btn btn-ghost">Скасувати</button>
+          <button id="debt-form-save" class="btn btn-primary">Зберегти</button>
+        </div>
+        <button id="debt-form-close-btn" class="btn btn-danger hidden">Закрити борг (виплачено)</button>
+      </div>
+    </div>
+
+    <!-- Sheet: сплатити по боргу -->
+    <div id="debt-pay-sheet" class="sheet hidden">
+      <div class="sheet-bg" data-sheet-close></div>
+      <div class="sheet-card">
+        <h3 id="debt-pay-title">Сплатити</h3>
+        <p id="debt-pay-info" class="hint"></p>
+        <label class="field">
+          <span>Сума</span>
+          <input id="debt-pay-amount" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Хто платить</span>
+          <select id="debt-pay-payer"></select>
+        </label>
+        <label class="field">
+          <span>Коментар (опціонально)</span>
+          <input id="debt-pay-comment" type="text" maxlength="200">
+        </label>
+        <div class="sheet-actions">
+          <button data-sheet-close class="btn btn-ghost">Скасувати</button>
+          <button id="debt-pay-save" class="btn btn-primary">Сплатити</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ЕКРАН: Налаштування -->
     <section class="screen" data-screen="settings">
