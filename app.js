@@ -164,20 +164,6 @@ async function enterApp() {
 }
 
 function renderMenu() {
-  const t = State.today || {};
-  const tile = $('#no-expenses-tile');
-  const closed = t.expenses_submitted || t.no_expenses;
-  if (closed) {
-    tile.classList.add('disabled');
-    tile.setAttribute('aria-disabled', 'true');
-    tile.querySelector('.tile-emoji').textContent = '✓';
-    tile.querySelector('.tile-label').textContent = 'Звіт дня закрито';
-  } else {
-    tile.classList.remove('disabled');
-    tile.removeAttribute('aria-disabled');
-    tile.querySelector('.tile-emoji').textContent = '✅';
-    tile.querySelector('.tile-label').textContent = 'Витрат сьогодні не було';
-  }
   renderBalance();
 }
 
@@ -1055,10 +1041,6 @@ function bindEvents() {
   $$('[data-back]').forEach(el => el.addEventListener('click', () => navigate('menu')));
   $('#settings-btn').addEventListener('click', () => navigate('settings'));
 
-  $('#no-expenses-tile').addEventListener('click', () => {
-    if ($('#no-expenses-tile').classList.contains('disabled')) return;
-    markNoExpenses();
-  });
   $('#no-expenses-bottom').addEventListener('click', markNoExpenses);
   $('#finish-day').addEventListener('click', finishDay);
 
