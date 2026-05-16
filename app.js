@@ -714,6 +714,41 @@ function renderReport() {
   $('#rf-bal').textContent = fmtUAH(t.family.income.total - t.family.expenses.total);
 }
 
+// ==================== ПЕРЕКАЗ ====================
+
+function fillTransferRecipients() {
+  const sel = $('#transfer-to');
+  const me = State.auth?.user_name;
+  const names = (State.today && State.today.balance && State.today.balance.byUser)
+    ? Object.keys(State.today.balance.byUser) : [];
+  const others = names.filter(n => n !== me);
+  if (!others.length) {
+    sel.innerHTML = '<option value="">Немає інших користувачів</option>';
+  } else {
+    sel.innerHTML = others.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  }
+}
+
+async function saveTransfer() {
+  const to = $('#transfer-to').value;
+  const amount = Number($('#transfer-amount').value);
+  const comment = $('#transfer-comment').value.trim();
+  if (!to) { showToast('Обери отримувача'); return; }
+  if (!(amount > 0)) { showToast('Сума має бути > 0'); return; }
+  const btn = $('#transfer-save');
+  btn.disabled = true;
+  try {
+    await api('transfer', { user_id: State.auth.user_id, to_user_name: to, amount, comment });
+    await refreshToday();
+    showToast(`Перекинуто ${fmtUAH(amount)} → ${to} 🔄`);
+    setTimeout(() => navigate('menu'), 700);
+  } catch (e) {
+    showToast('Помилка: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function sendReportToTelegram() {
   const btn = $('#report-tg');
   btn.disabled = true;
@@ -750,6 +785,11 @@ function navigate(to) {
     setScreen('report');
     renderReport();
     refreshToday();
+  } else if (to === 'transfer') {
+    fillTransferRecipients();
+    $('#transfer-amount').value = '';
+    $('#transfer-comment').value = '';
+    setScreen('transfer');
   } else if (to === 'menu') {
     setScreen('menu');
     refreshToday();
@@ -822,6 +862,9 @@ function bindEvents() {
 
   // Проміжний звіт
   $('#report-tg').addEventListener('click', sendReportToTelegram);
+
+  // Переказ
+  $('#transfer-save').addEventListener('click', saveTransfer);
 
   // Logout
   $('#logout-btn').addEventListener('click', () => {

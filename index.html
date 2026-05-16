@@ -48,6 +48,10 @@
             <span class="tile-emoji">📋</span>
             <span class="tile-label">Проміжний звіт</span>
           </button>
+          <button class="tile tile-wide" data-go="transfer">
+            <span class="tile-emoji">🔄</span>
+            <span class="tile-label">Переказ між нами</span>
+          </button>
           <button id="no-expenses-tile" class="tile tile-wide">
             <span class="tile-emoji">✅</span>
             <span class="tile-label">Витрат сьогодні не було</span>
@@ -173,6 +177,30 @@
         </div>
 
         <button id="report-tg" class="btn btn-ghost">📨 Надіслати в Telegram</button>
+      </div>
+    </section>
+
+    <!-- ЕКРАН: Переказ -->
+    <section class="screen" data-screen="transfer">
+      <div class="container narrow">
+        <header class="topbar">
+          <button class="icon-btn" data-back>←</button>
+          <h2>Переказ між нами</h2>
+        </header>
+        <p class="hint">Внутрішній рух коштів між гаманцями. Не зараховується в сімейні витрати/дохід — тільки в індивідуальні баланси.</p>
+        <label class="field">
+          <span>Кому</span>
+          <select id="transfer-to"></select>
+        </label>
+        <label class="field">
+          <span>Сума, грн</span>
+          <input id="transfer-amount" type="number" inputmode="decimal" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Коментар (необов'язково)</span>
+          <input id="transfer-comment" type="text" maxlength="200" placeholder="Напр.: на продукти">
+        </label>
+        <button id="transfer-save" class="btn btn-primary">Перекинути</button>
       </div>
     </section>
 
